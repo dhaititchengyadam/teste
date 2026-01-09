@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare AI Lab - Amelyore</title>
+    <title>Cloudflare AI Lab - Vèsyon Korije</title>
     <style>
         body { font-family: -apple-system, sans-serif; max-width: 800px; margin: auto; padding: 20px; background: #f0f2f5; color: #333; }
         h1 { text-align: center; color: #f38020; }
@@ -23,7 +23,7 @@
 </head>
 <body>
 
-    <h1>🔥 AI Dashboard Amelyore</h1>
+    <h1>🔥 AI Dashboard Vèsyon Korije</h1>
 
     <div class="card">
         <h3>📷 Analize Imaj</h3>
@@ -36,7 +36,7 @@
         <h3>🎙️ Transkri Vwa (Audio to Text)</h3>
         
         <div class="record-controls">
-            <p id="recordStatus">Prepare pou enregistre...</p>
+            <p id="recordStatus">Prepare pou enregistre... (asire w bay pèmisyon mikwofòn)</p>
             <p id="timer">00:00</p>
             <button id="startBtn">🟢 Kòmanse Enregistre</button>
             <button id="stopBtn" class="stop" disabled>🔴 Sispann</button>
@@ -62,24 +62,44 @@
         let seconds = 0;
         let recordedBlob = null;
 
-        // Fonksyon pou formate timer
         function formatTime(sec) {
             const m = String(Math.floor(sec / 60)).padStart(2, '0');
             const s = String(sec % 60).padStart(2, '0');
             return `${m}:${s}`;
         }
 
-        // Kòmanse enregistre
+        // Fonksyon pou jwenn yon mimeType ki sipòte
+        function getSupportedMimeType() {
+            const types = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4',
+                'audio/ogg',
+                'audio/wav'
+            ];
+            for (const type of types) {
+                if (MediaRecorder.isTypeSupported(type)) {
+                    return type;
+                }
+            }
+            return ''; // Si okenn, kite navigatè a chwazi
+        }
+
         document.getElementById('startBtn').onclick = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-
                 audioChunks = [];
+
+                const mimeType = getSupportedMimeType();
+                const options = mimeType ? { mimeType } : {};
+
+                mediaRecorder = new MediaRecorder(stream, options);
+
                 mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
 
                 mediaRecorder.onstop = () => {
-                    recordedBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const finalMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
+                    recordedBlob = new Blob(audioChunks, { type: finalMime });
                     const preview = document.getElementById('previewAudio');
                     preview.src = URL.createObjectURL(recordedBlob);
                     preview.style.display = 'block';
@@ -87,16 +107,14 @@
                     // Voye otomatikman
                     processAudio(recordedBlob, 'resAudio');
                     
-                    // Stop stream
                     stream.getTracks().forEach(track => track.stop());
                 };
 
                 mediaRecorder.start();
                 document.getElementById('startBtn').disabled = true;
                 document.getElementById('stopBtn').disabled = false;
-                document.getElementById('recordStatus').innerText = "Y ap enregistre... (pale byen fò!)";
+                document.getElementById('recordStatus').innerText = "Y ap enregistre... Pale byen klè!";
 
-                // Timer
                 seconds = 0;
                 document.getElementById('timer').innerText = formatTime(0);
                 timerInterval = setInterval(() => {
@@ -105,11 +123,10 @@
                 }, 1000);
 
             } catch (err) {
-                alert("Pa ka jwenn aksè nan mikwofòn: " + err.message + "\nTcheke pèmisyon ou.");
+                alert("Pwoblèm ak mikwofòn: " + err.message + "\nTcheke pèmisyon ak eseye ankò.");
             }
         };
 
-        // Sispann enregistre
         document.getElementById('stopBtn').onclick = () => {
             if (mediaRecorder && mediaRecorder.state === 'recording') {
                 mediaRecorder.stop();
@@ -120,34 +137,34 @@
             }
         };
 
-        // Voye fichye upload
         document.getElementById('uploadBtn').onclick = () => {
             const fileInput = document.getElementById('audioFile');
             if (!fileInput.files[0]) return alert("Chwazi yon fichye audio anvan!");
             processAudio(fileInput.files[0], 'resAudio');
         };
 
-        // Analize imaj
         document.getElementById('btnImg').onclick = () => {
             const fileInput = document.getElementById('imgInput');
             if (!fileInput.files[0]) return alert("Chwazi yon imaj anvan!");
             processImage(fileInput.files[0]);
         };
 
-        // Fonksyon jeneral pou voye audio
         async function processAudio(blobOrFile, resId) {
             const resBox = document.getElementById(resId);
-            resBox.innerText = "Y ap trete audio a... (sa ka pran 10-30 segonn)";
+            resBox.innerText = "Y ap trete audio a... (sa ka pran kèk segonn)";
             
             try {
-                const response = await fetch(`${BASE_URL}/audio-to-text`, {
-                    method: 'POST',
-                    body: blobOrFile
-                });
+                const response = await fetch(`${BASE_URL}/audio-to-text`, { method: 'POST', body: blobOrFile });
+                
+                let data = {};
+                if (response.headers.get("Content-Type")?.includes("application/json")) {
+                    try { data = await response.json(); } catch {}
+                }
 
-                if (!response.ok) throw new Error(`Erè sèvè: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(data.error || `Erè sèvè: ${response.status} (pa gen detay)`);
+                }
 
-                const data = await response.json();
                 resBox.innerText = data.text || JSON.stringify(data, null, 2);
             } catch (err) {
                 resBox.innerText = "Erè: " + err.message;
@@ -155,21 +172,22 @@
             }
         }
 
-        // Fonksyon pou imaj
         async function processImage(file) {
             const resBox = document.getElementById('resImg');
             resBox.innerText = "Y ap analize imaj la...";
             
             try {
-                const response = await fetch(`${BASE_URL}/analize-imaj`, {
-                    method: 'POST',
-                    body: file
-                });
+                const response = await fetch(`${BASE_URL}/analize-imaj`, { method: 'POST', body: file });
+                
+                let data = {};
+                if (response.headers.get("Content-Type")?.includes("application/json")) {
+                    try { data = await response.json(); } catch {}
+                }
 
-                if (!response.ok) throw new Error(`Erè sèvè: ${response.status}`);
+                if (!response.ok) {
+                    throw new Error(data.error || `Erè sèvè: ${response.status} (pa gen detay)`);
+                }
 
-                const data = await response.json();
-                // Pou nouvo modèl Llama, li souvan gen "response"
                 const text = data.response || data.description || data.text || JSON.stringify(data, null, 2);
                 resBox.innerText = text;
             } catch (err) {
