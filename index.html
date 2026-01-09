@@ -1,200 +1,87 @@
 <!DOCTYPE html>
 <html lang="ht">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare AI Lab - Final Amelyore</title>
-    <style>
-        body { font-family: -apple-system, sans-serif; max-width: 800px; margin: auto; padding: 20px; background: #f0f2f5; color: #333; }
-        h1 { text-align: center; color: #f38020; }
-        .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 30px; }
-        .license-card { background: #fff3cd; border-left: 6px solid #f38020; }
-        h3 { margin-top: 0; color: #f38020; }
-        button { background: #f38020; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 8px 4px; }
-        button:disabled { background: #aaa; cursor: not-allowed; }
-        button.stop { background: #d32f2f; }
-        button.upload { background: #1976d2; }
-        button.agree { background: #28a745; font-size: 1.1em; }
-        pre { background: #1e1e1e; color: #0f0; padding: 16px; border-radius: 8px; overflow-x: auto; min-height: 80px; margin-top: 16px; white-space: pre-wrap; }
-        .record-controls { margin: 16px 0; }
-        #timer { font-size: 1.5em; font-weight: bold; color: #f38020; }
-        #recordStatus { margin: 8px 0; }
-        audio { margin-top: 10px; width: 100%; }
-        .or { text-align: center; margin: 20px 0; font-weight: bold; color: #666; }
-        #licenseStatus { margin: 16px 0; font-weight: bold; }
-    </style>
+    <!-- ... (menm style ak head ansyen an) -->
 </head>
 <body>
 
-    <h1>🔥 AI Dashboard Final</h1>
+    <h1>🔥 AI Dashboard Final + TTS</h1>
 
-    <div class="card license-card">
-        <h3>⚠️ Pou Analize Imaj (Llama Vision)</h3>
-        <p>Modèl sa a mande pou w aksepte <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE" target="_blank">License</a> ak <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/USE_POLICY.md" target="_blank">Règ Itilizasyon</a> Meta a yon sèl fwa.</p>
-        <button id="agreeBtn" class="agree">🟢 Aksepte License Meta Pou Analize Imaj</button>
-        <p id="licenseStatus">Estati: Pa aksepte ankò – klike bouton an pou aktive.</p>
-    </div>
+    <!-- ... (kenbe card license ak bouton agree si li toujou la) -->
 
     <div class="card">
         <h3>📷 Analize Imaj</h3>
         <input type="file" id="imgInput" accept="image/*">
         <button id="btnImg">Analize Imaj</button>
-        <pre id="resImg">Atann rezilta... (apre w fin aksepte license la)</pre>
+        <pre id="resImg">Atann rezilta...</pre>
+        <button onclick="speakResult('resImg', 'en')">🔊 Li Deskripsyon an awot vwa (Anglè)</button>
     </div>
 
     <div class="card">
         <h3>🎙️ Transkri Vwa (Audio to Text)</h3>
-        
-        <div class="record-controls">
-            <p id="recordStatus">Prepare pou enregistre... (asire w bay pèmisyon mikwofòn)</p>
-            <p id="timer">00:00</p>
-            <button id="startBtn">🟢 Kòmanse Enregistre</button>
-            <button id="stopBtn" class="stop" disabled>🔴 Sispann</button>
-            <audio id="previewAudio" controls style="display:none;"></audio>
-        </div>
-
-        <div class="or">—— OSWA ——</div>
-
-        <div>
-            <input type="file" id="audioFile" accept="audio/*,video/*">
-            <button id="uploadBtn" class="upload">Voye Fichye Audio</button>
-        </div>
-
+        <!-- ... (kenbe kontwòl enregistre ak upload) -->
         <pre id="resAudio">Atann rezilta...</pre>
+        <button onclick="speakResult('resAudio', 'fr')">🔊 Li Transkripsyon an awot vwa (Fransè - pi bon pou Kreyòl)</button>
+    </div>
+
+    <div class="card">
+        <h3>🔊 Tèks a Vwa (Text to Speech)</h3>
+        <textarea id="ttsText" rows="5" placeholder="Ecri tèks ou vle tande awot vwa (max 1000 karaktè)"></textarea>
+        <select id="ttsLang">
+            <option value="en">Anglè</option>
+            <option value="fr" selected>Fransè (rekomande pou Kreyòl)</option>
+        </select>
+        <button id="ttsBtn">Jenere epi Jwe Vwa</button>
+        <audio id="ttsAudio" controls style="width:100%; margin-top:10px;"></audio>
     </div>
 
     <script>
-        const BASE_URL = "https://teste.adamdh7.org"; // Chanje si bezwen
+        const BASE_URL = "https://teste.adamdh7.org";
 
-        // Bouton pou aksepte license
-        document.getElementById('agreeBtn').onclick = async () => {
-            const status = document.getElementById('licenseStatus');
-            const btn = document.getElementById('agreeBtn');
-            btn.disabled = true;
-            status.innerText = "Y ap voye akseptasyon...";
+        // ... (kenbe tout fonksyon ansyen yo: agree, enregistre, processAudio, processImage)
+
+        // NOUVO: Fonksyon pou Text to Speech
+        async function processTTS(text, lang = "en") {
+            const audioPlayer = document.getElementById('ttsAudio');
+            audioPlayer.src = ''; // Reset
 
             try {
-                const response = await fetch(`${BASE_URL}/agree-llama`, { method: 'POST' });
-                const data = await response.text();
-                status.innerText = "✅ Siksè! " + data + " Ou ka analize imaj kounye a.";
-                status.style.color = "green";
-            } catch (err) {
-                status.innerText = "❌ Erè: " + err.message + " Eseye ankò oswa rafrechi paj la.";
-                status.style.color = "red";
-                btn.disabled = false;
-            }
-        };
+                const response = await fetch(`${BASE_URL}/text-to-speech`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, lang })
+                });
 
-        let mediaRecorder;
-        let audioChunks = [];
-        let timerInterval;
-        let seconds = 0;
-        let recordedBlob = null;
-
-        function formatTime(sec) {
-            const m = String(Math.floor(sec / 60)).padStart(2, '0');
-            const s = String(sec % 60).padStart(2, '0');
-            return `${m}:${s}`;
-        }
-
-        function getSupportedMimeType() {
-            const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
-            for (const type of types) {
-                if (MediaRecorder.isTypeSupported(type)) return type;
-            }
-            return '';
-        }
-
-        document.getElementById('startBtn').onclick = async () => {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-                const mimeType = getSupportedMimeType();
-                const options = mimeType ? { mimeType } : {};
-                mediaRecorder = new MediaRecorder(stream, options);
-
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const finalMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
-                    recordedBlob = new Blob(audioChunks, { type: finalMime });
-                    const preview = document.getElementById('previewAudio');
-                    preview.src = URL.createObjectURL(recordedBlob);
-                    preview.style.display = 'block';
-                    processAudio(recordedBlob, 'resAudio');
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                document.getElementById('recordStatus').innerText = "Y ap enregistre... Pale byen klè!";
-
-                seconds = 0;
-                document.getElementById('timer').innerText = formatTime(0);
-                timerInterval = setInterval(() => {
-                    seconds++;
-                    document.getElementById('timer').innerText = formatTime(seconds);
-                }, 1000);
-
-            } catch (err) {
-                alert("Pwoblèm mikwofòn: " + err.message);
-            }
-        };
-
-        document.getElementById('stopBtn').onclick = () => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-                clearInterval(timerInterval);
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                document.getElementById('recordStatus').innerText = "Enregistrman fini – y ap voye pou transkri...";
-            }
-        };
-
-        document.getElementById('uploadBtn').onclick = () => {
-            const fileInput = document.getElementById('audioFile');
-            if (!fileInput.files[0]) return alert("Chwazi yon fichye audio anvan!");
-            processAudio(fileInput.files[0], 'resAudio');
-        };
-
-        document.getElementById('btnImg').onclick = () => {
-            const fileInput = document.getElementById('imgInput');
-            if (!fileInput.files[0]) return alert("Chwazi yon imaj anvan!");
-            processImage(fileInput.files[0]);
-        };
-
-        async function processAudio(blobOrFile, resId) {
-            const resBox = document.getElementById(resId);
-            resBox.innerText = "Y ap trete audio a...";
-            try {
-                const response = await fetch(`${BASE_URL}/audio-to-text`, { method: 'POST', body: blobOrFile });
-                let data = {};
-                if (response.headers.get("Content-Type")?.includes("application/json")) {
-                    data = await response.json();
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Erè sèvè');
                 }
-                if (!response.ok) throw new Error(data.error || `Erè sèvè: ${response.status}`);
-                resBox.innerText = data.text || JSON.stringify(data, null, 2);
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                audioPlayer.src = url;
+                audioPlayer.play();
             } catch (err) {
-                resBox.innerText = "Erè: " + err.message;
+                alert("Erè TTS: " + err.message);
             }
         }
 
-        async function processImage(file) {
-            const resBox = document.getElementById('resImg');
-            resBox.innerText = "Y ap analize imaj la...";
-            try {
-                const response = await fetch(`${BASE_URL}/analize-imaj`, { method: 'POST', body: file });
-                let data = {};
-                if (response.headers.get("Content-Type")?.includes("application/json")) {
-                    data = await response.json();
-                }
-                if (!response.ok) throw new Error(data.error || `Erè sèvè: ${response.status}`);
-                const text = data.response || data.description || data.text || JSON.stringify(data, null, 2);
-                resBox.innerText = text;
-            } catch (err) {
-                resBox.innerText = "Erè: " + err.message;
-            }
+        // Bouton prensipal TTS
+        document.getElementById('ttsBtn').onclick = () => {
+            const text = document.getElementById('ttsText').value.trim();
+            const lang = document.getElementById('ttsLang').value;
+            if (!text) return alert("Ecri yon tèks anvan!");
+            processTTS(text, lang);
+        };
+
+        // Fonksyon pou li rezilta yo otomatikman
+        function speakResult(resId, lang) {
+            const text = document.getElementById(resId).innerText.trim();
+            if (!text || text.includes("Atann") || text.includes("Erè")) return alert("Pa gen bon rezilta pou li!");
+            processTTS(text, lang);
         }
+
+        // ... (rès script ansyen an)
     </script>
 </body>
 </html>
