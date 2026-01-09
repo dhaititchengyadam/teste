@@ -1,0 +1,14 @@
+name = "server2"
+main = "worker.js"
+compatibility_date = "2026-01-06"
+
+[[r2_buckets]]
+binding = "teste"
+bucket_name = "teste"
+
+[ai]
+binding = "AI"
+
+routes = [
+  "teste.adamdh7.org/*"
+]
