@@ -3,33 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudflare AI Lab - Vèsyon Korije</title>
+    <title>Cloudflare AI Lab - Final Amelyore</title>
     <style>
         body { font-family: -apple-system, sans-serif; max-width: 800px; margin: auto; padding: 20px; background: #f0f2f5; color: #333; }
         h1 { text-align: center; color: #f38020; }
         .card { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin-bottom: 30px; }
+        .license-card { background: #fff3cd; border-left: 6px solid #f38020; }
         h3 { margin-top: 0; color: #f38020; }
         button { background: #f38020; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 8px 4px; }
         button:disabled { background: #aaa; cursor: not-allowed; }
         button.stop { background: #d32f2f; }
         button.upload { background: #1976d2; }
+        button.agree { background: #28a745; font-size: 1.1em; }
         pre { background: #1e1e1e; color: #0f0; padding: 16px; border-radius: 8px; overflow-x: auto; min-height: 80px; margin-top: 16px; white-space: pre-wrap; }
         .record-controls { margin: 16px 0; }
         #timer { font-size: 1.5em; font-weight: bold; color: #f38020; }
         #recordStatus { margin: 8px 0; }
         audio { margin-top: 10px; width: 100%; }
         .or { text-align: center; margin: 20px 0; font-weight: bold; color: #666; }
+        #licenseStatus { margin: 16px 0; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h1>🔥 AI Dashboard Vèsyon Korije</h1>
+    <h1>🔥 AI Dashboard Final</h1>
+
+    <div class="card license-card">
+        <h3>⚠️ Pou Analize Imaj (Llama Vision)</h3>
+        <p>Modèl sa a mande pou w aksepte <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/LICENSE" target="_blank">License</a> ak <a href="https://github.com/meta-llama/llama-models/blob/main/models/llama3_2/USE_POLICY.md" target="_blank">Règ Itilizasyon</a> Meta a yon sèl fwa.</p>
+        <button id="agreeBtn" class="agree">🟢 Aksepte License Meta Pou Analize Imaj</button>
+        <p id="licenseStatus">Estati: Pa aksepte ankò – klike bouton an pou aktive.</p>
+    </div>
 
     <div class="card">
         <h3>📷 Analize Imaj</h3>
         <input type="file" id="imgInput" accept="image/*">
         <button id="btnImg">Analize Imaj</button>
-        <pre id="resImg">Atann rezilta...</pre>
+        <pre id="resImg">Atann rezilta... (apre w fin aksepte license la)</pre>
     </div>
 
     <div class="card">
@@ -56,6 +66,25 @@
     <script>
         const BASE_URL = "https://teste.adamdh7.org"; // Chanje si bezwen
 
+        // Bouton pou aksepte license
+        document.getElementById('agreeBtn').onclick = async () => {
+            const status = document.getElementById('licenseStatus');
+            const btn = document.getElementById('agreeBtn');
+            btn.disabled = true;
+            status.innerText = "Y ap voye akseptasyon...";
+
+            try {
+                const response = await fetch(`${BASE_URL}/agree-llama`, { method: 'POST' });
+                const data = await response.text();
+                status.innerText = "✅ Siksè! " + data + " Ou ka analize imaj kounye a.";
+                status.style.color = "green";
+            } catch (err) {
+                status.innerText = "❌ Erè: " + err.message + " Eseye ankò oswa rafrechi paj la.";
+                status.style.color = "red";
+                btn.disabled = false;
+            }
+        };
+
         let mediaRecorder;
         let audioChunks = [];
         let timerInterval;
@@ -68,45 +97,30 @@
             return `${m}:${s}`;
         }
 
-        // Fonksyon pou jwenn yon mimeType ki sipòte
         function getSupportedMimeType() {
-            const types = [
-                'audio/webm;codecs=opus',
-                'audio/webm',
-                'audio/mp4',
-                'audio/ogg',
-                'audio/wav'
-            ];
+            const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
             for (const type of types) {
-                if (MediaRecorder.isTypeSupported(type)) {
-                    return type;
-                }
+                if (MediaRecorder.isTypeSupported(type)) return type;
             }
-            return ''; // Si okenn, kite navigatè a chwazi
+            return '';
         }
 
         document.getElementById('startBtn').onclick = async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioChunks = [];
-
                 const mimeType = getSupportedMimeType();
                 const options = mimeType ? { mimeType } : {};
-
                 mediaRecorder = new MediaRecorder(stream, options);
 
                 mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-
                 mediaRecorder.onstop = () => {
                     const finalMime = mediaRecorder.mimeType || mimeType || 'audio/webm';
                     recordedBlob = new Blob(audioChunks, { type: finalMime });
                     const preview = document.getElementById('previewAudio');
                     preview.src = URL.createObjectURL(recordedBlob);
                     preview.style.display = 'block';
-
-                    // Voye otomatikman
                     processAudio(recordedBlob, 'resAudio');
-                    
                     stream.getTracks().forEach(track => track.stop());
                 };
 
@@ -123,7 +137,7 @@
                 }, 1000);
 
             } catch (err) {
-                alert("Pwoblèm ak mikwofòn: " + err.message + "\nTcheke pèmisyon ak eseye ankò.");
+                alert("Pwoblèm mikwofòn: " + err.message);
             }
         };
 
@@ -151,48 +165,34 @@
 
         async function processAudio(blobOrFile, resId) {
             const resBox = document.getElementById(resId);
-            resBox.innerText = "Y ap trete audio a... (sa ka pran kèk segonn)";
-            
+            resBox.innerText = "Y ap trete audio a...";
             try {
                 const response = await fetch(`${BASE_URL}/audio-to-text`, { method: 'POST', body: blobOrFile });
-                
                 let data = {};
                 if (response.headers.get("Content-Type")?.includes("application/json")) {
-                    try { data = await response.json(); } catch {}
+                    data = await response.json();
                 }
-
-                if (!response.ok) {
-                    throw new Error(data.error || `Erè sèvè: ${response.status} (pa gen detay)`);
-                }
-
+                if (!response.ok) throw new Error(data.error || `Erè sèvè: ${response.status}`);
                 resBox.innerText = data.text || JSON.stringify(data, null, 2);
             } catch (err) {
                 resBox.innerText = "Erè: " + err.message;
-                console.error(err);
             }
         }
 
         async function processImage(file) {
             const resBox = document.getElementById('resImg');
             resBox.innerText = "Y ap analize imaj la...";
-            
             try {
                 const response = await fetch(`${BASE_URL}/analize-imaj`, { method: 'POST', body: file });
-                
                 let data = {};
                 if (response.headers.get("Content-Type")?.includes("application/json")) {
-                    try { data = await response.json(); } catch {}
+                    data = await response.json();
                 }
-
-                if (!response.ok) {
-                    throw new Error(data.error || `Erè sèvè: ${response.status} (pa gen detay)`);
-                }
-
+                if (!response.ok) throw new Error(data.error || `Erè sèvè: ${response.status}`);
                 const text = data.response || data.description || data.text || JSON.stringify(data, null, 2);
                 resBox.innerText = text;
             } catch (err) {
                 resBox.innerText = "Erè: " + err.message;
-                console.error(err);
             }
         }
     </script>
