@@ -202,7 +202,10 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, lang })
                 });
-                if (!response.ok) throw new Error("Server error");
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || "Server error");
+                }
                 const blob = await response.blob();
                 audioPlayer.src = URL.createObjectURL(blob);
                 audioPlayer.play();
