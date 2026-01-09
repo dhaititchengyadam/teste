@@ -13,20 +13,18 @@ export default {
     const url = new URL(request.url);
 
     try {
-      // Endpoint espesyal pou aksepte license (bon fòma kounye a)
       if (url.pathname === "/agree-llama") {
-        const input = { prompt: "agree" }; // Fòma ofisyèl pou akseptasyon
+        const input = { prompt: "agree" };
         await env.AI.run("@cf/meta/llama-3.2-11b-vision-instruct", input);
-        return new Response("✅ Ou dakò ak license Meta Llama 3.2 la avèk siksè! Modèl vision la pare pou itilize pou tout tan.", {
+        return new Response("✅ License accepted successfully! Vision model ready.", {
           headers: { ...corsHeaders, "Content-Type": "text/plain" },
         });
       }
 
-      // 1. ANALIZ IMAJ (kenbe messages format pou vizyon)
       if (url.pathname === "/analize-imaj" && request.method === "POST") {
         let contentType = request.headers.get("Content-Type") || "image/jpeg";
         if (!contentType.startsWith("image/")) {
-          return new Response(JSON.stringify({ error: "Fichye a dwe yon imaj" }), {
+          return new Response(JSON.stringify({ error: "Must be an image file" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -34,7 +32,7 @@ export default {
 
         const blob = await request.blob();
         if (blob.size === 0 || blob.size > 8 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: "Imaj vid oswa twò gwo (max 8MB)" }), {
+          return new Response(JSON.stringify({ error: "Image empty or too large (max 8MB)" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -56,7 +54,7 @@ export default {
             content: [
               {
                 type: "text",
-                text: "Dekri imaj sa a an detay. Bay deskripsyon an premye nan Anglè, epi apre tradui l nan Kreyòl Ayisyen klè ak natirèl."
+                text: "Analyze this image in extreme detail. If there are people or faces, describe them thoroughly: physical appearance, apparent age, gender, facial expression, emotions, clothing, pose, and if they resemble any known celebrity or person (give name if confident). Also describe the background, dominant colors, lighting, composition, photographic style, overall atmosphere, objects present, and any text. Provide a rich, professional-level visual description in English only."
               },
               {
                 type: "image_url",
@@ -75,11 +73,10 @@ export default {
         });
       }
 
-      // 2. AUDIO TO TEXT (kenbe base64 string pou turbo)
       if (url.pathname === "/audio-to-text" && request.method === "POST") {
         const contentType = request.headers.get("Content-Type") || "";
         if (!contentType.startsWith("audio/") && !contentType.startsWith("video/")) {
-          return new Response(JSON.stringify({ error: "Fichye a dwe audio oswa video" }), {
+          return new Response(JSON.stringify({ error: "Must be audio or video file" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -87,7 +84,7 @@ export default {
 
         const blob = await request.blob();
         if (blob.size === 0 || blob.size > 25 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: "Audio vid oswa twò gwo (max 25MB)" }), {
+          return new Response(JSON.stringify({ error: "Audio empty or too large (max 25MB)" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -111,20 +108,50 @@ export default {
         });
       }
 
+      if (url.pathname === "/text-to-speech" && request.method === "POST") {
+        const { text, lang = "en" } = await request.json();
+
+        if (!text || text.trim().length === 0) {
+          return new Response(JSON.stringify({ error: "Valid text required" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        if (text.length > 1000) {
+          return new Response(JSON.stringify({ error: "Text too long (max 1000 characters)" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const normalizedLang = lang.toLowerCase() === "fr" ? "fr" : "en";
+
+        const input = { text, lang: normalizedLang };
+
+        const response = await env.AI.run("@cf/myshell-ai/melotts", input);
+
+        const audioBytes = new Uint8Array(response.audio || response);
+
+        return new Response(audioBytes, {
+          headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
+        });
+      }
+
     } catch (e) {
-      const errorMsg = e.message || "Erè enkoni";
+      const errorMsg = e.message || "Unknown error";
       if (errorMsg.includes("5016")) {
-        return new Response(JSON.stringify({ error: "Ou poko aksepte license Meta a. Ale sou /agree-llama pou fè sa anvan." }), {
+        return new Response(JSON.stringify({ error: "License not accepted yet. Visit /agree-llama first." }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: "Erè entèn: " + errorMsg }), {
+      return new Response(JSON.stringify({ error: "Internal error: " + errorMsg }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response("Endpoint pa egziste", { status: 404, headers: corsHeaders });
+    return new Response("Endpoint not found", { status: 404, headers: corsHeaders });
   },
 };
