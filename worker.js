@@ -125,15 +125,25 @@ export default {
           });
         }
 
-        const normalizedLang = lang.toLowerCase() === "fr" ? "fr" : "en";
+        const normalizedLang = lang.toLowerCase() === "fr" ? "FR" : "EN";
 
         const input = { text, lang: normalizedLang };
 
         const response = await env.AI.run("@cf/myshell-ai/melotts", input);
 
-        const audioBytes = new Uint8Array(response.audio || response);
+        const audioBase64 = response.audio;
 
-        return new Response(audioBytes, {
+        if (!audioBase64 || typeof audioBase64 !== "string") {
+          throw new Error("Invalid audio response from model");
+        }
+
+        const binaryString = atob(audioBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+
+        return new Response(bytes, {
           headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
         });
       }
