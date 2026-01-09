@@ -22,21 +22,15 @@ export default {
       }
 
       if (url.pathname === "/analize-imaj" && request.method === "POST") {
-        let contentType = request.headers.get("Content-Type") || "image/jpeg";
-        if (!contentType.startsWith("image/")) {
-          return new Response(JSON.stringify({ error: "Must be an image file" }), {
+        const blob = await request.blob();
+        if (blob.size === 0 || blob.size > 10 * 1024 * 1024) { // Max 10MB pou tout imaj
+          return new Response(JSON.stringify({ error: "Image empty or too large (max 10MB)" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
-        const blob = await request.blob();
-        if (blob.size === 0 || blob.size > 8 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: "Image empty or too large (max 8MB)" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        let contentType = request.headers.get("Content-Type") || "image/png"; // Fallback pou tout kalite
 
         const arrayBuffer = await blob.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
@@ -74,17 +68,9 @@ export default {
       }
 
       if (url.pathname === "/audio-to-text" && request.method === "POST") {
-        const contentType = request.headers.get("Content-Type") || "";
-        if (!contentType.startsWith("audio/") && !contentType.startsWith("video/")) {
-          return new Response(JSON.stringify({ error: "Must be audio or video file" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
         const blob = await request.blob();
-        if (blob.size === 0 || blob.size > 25 * 1024 * 1024) {
-          return new Response(JSON.stringify({ error: "Audio empty or too large (max 25MB)" }), {
+        if (blob.size === 0 || blob.size > 30 * 1024 * 1024) { // Max 30MB sou gratis
+          return new Response(JSON.stringify({ error: "Audio empty or too large (max 30MB)" }), {
             status: 400,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -109,7 +95,7 @@ export default {
       }
 
       if (url.pathname === "/text-to-speech" && request.method === "POST") {
-        const { text, lang = "en" } = await request.json();
+        const { text } = await request.json();
 
         if (!text || text.trim().length === 0) {
           return new Response(JSON.stringify({ error: "Valid text required" }), {
@@ -118,16 +104,8 @@ export default {
           });
         }
 
-        if (text.length > 1000) {
-          return new Response(JSON.stringify({ error: "Text too long (max 1000 characters)" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const normalizedLang = lang.toLowerCase() === "fr" ? "fr" : "en";
-
-        const input = { prompt: text, lang: normalizedLang };
+        // Pa gen limit sou longè – modèl la ap okipe
+        const input = { prompt: text };
 
         const response = await env.AI.run("@cf/myshell-ai/melotts", input);
 
@@ -151,7 +129,7 @@ export default {
     } catch (e) {
       const errorMsg = e.message || "Unknown error";
       if (errorMsg.includes("5016")) {
-        return new Response(JSON.stringify({ error: "License not accepted yet. Visit /agree-llama first." }), {
+        return new Response(JSON.stringify({ error: "License not accepted yet." }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
