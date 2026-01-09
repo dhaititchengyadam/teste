@@ -114,12 +114,17 @@
             max-width: 320px;
             box-shadow: 0 4px 16px rgba(0,0,0,0.5);
         }
-        .message-media img, .message-media video, .message-media audio {
+        .message-media img, .message-media video {
             width: 100%;
             display: block;
             border-radius: 14px;
+            cursor: pointer;
         }
-        .message-media audio { background: #111; padding: 8px; }
+        .message-media audio {
+            width: 100%;
+            background: #111;
+            padding: 8px;
+        }
 
         @media (max-width: 920px) {
             .message-media { max-width: 90vw; }
@@ -252,6 +257,7 @@
             object-fit: cover;
             border-radius: 14px;
             display: block;
+            cursor: pointer;
         }
         .preview-item audio {
             background: #111;
@@ -272,42 +278,6 @@
             font-size: 20px;
             cursor: pointer;
         }
-
-        #userMenu {
-            position: fixed;
-            top: 0; left: 0; bottom: 0;
-            width: 280px;
-            background: #0f0f0f;
-            border-right: 1px solid rgba(255,255,255,0.08);
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            z-index: 100;
-            padding-top: var(--header-h);
-        }
-        #userMenu.show { transform: translateX(0); }
-
-        .backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.6);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s;
-            z-index: 95;
-        }
-        .backdrop.show { opacity: 1; pointer-events: auto; }
-
-        #lang-sheet {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: #1c1c1e;
-            border-radius: 20px 20px 0 0;
-            padding: 20px 0;
-            transform: translateY(100%);
-            transition: transform 0.3s;
-            z-index: 100;
-        }
-        #lang-sheet.show { transform: translateY(0); }
 
         #modal {
             position: fixed;
@@ -535,16 +505,13 @@
             }
         };
 
-        const sendSVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" fill="white"/></svg>`;
-        const voiceSVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.47,17.5 13,17.96V21H11V17.96C7.53,17.5 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" fill="white"/></svg>`;
-        const stopSVG = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" fill="white"/></svg>`;
-
         let currentMedia = null;
         let recorder = null;
         let audioChunks = [];
         let recording = false;
         let messageCount = 0;
         let isWaiting = false;
+        let currentTypingEl = null;
 
         async function login() {
             let id = document.getElementById('login-id').value.trim();
@@ -647,11 +614,11 @@
             const hasText = userInput.value.trim().length > 0;
             const hasMedia = currentMedia !== null;
             if (recording) {
-                actionBtn.innerHTML = stopSVG;
+                actionBtn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" fill="white"/></svg>`;
             } else if (!hasText && !hasMedia) {
-                actionBtn.innerHTML = voiceSVG;
+                actionBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12,2A3,3 0 0,1 15,5V11A3,3 0 0,1 12,14A3,3 0 0,1 9,11V5A3,3 0 0,1 12,2M19,11C19,14.53 16.47,17.5 13,17.96V21H11V17.96C7.53,17.5 5,14.53 5,11H7A5,5 0 0,0 12,16A5,5 0 0,0 17,11H19Z" fill="white"/></svg>`;
             } else {
-                actionBtn.innerHTML = sendSVG;
+                actionBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M2,21L23,12L2,3V10L17,12L2,14V21Z" fill="white"/></svg>`;
             }
             actionBtn.disabled = !(hasText || hasMedia || recording);
         }
@@ -664,16 +631,15 @@
             currentMedia = null;
         }
 
-        function addPreview(type, previewURL, dataURL) {
+        function addPreview(type, previewURL, base64Data) {
             clearPreview();
             const item = document.createElement('div');
             item.className = 'preview-item';
 
-            const mediaEl = document.createElement(type === 'image' ? 'img' : type === 'video' ? 'video' : 'audio');
+            const mediaEl = document.createElement(type === 'audio' ? 'audio' : type === 'video' ? 'video' : 'img');
             mediaEl.src = previewURL;
-            if (type !== 'image') {
-                mediaEl.controls = true;
-            }
+            mediaEl.controls = type !== 'img';
+            mediaEl.style.borderRadius = '14px';
             item.appendChild(mediaEl);
 
             const removeBtn = document.createElement('div');
@@ -690,7 +656,7 @@
 
             previewContainer.appendChild(item);
 
-            currentMedia = { type: type === 'video' ? 'audio' : type, data: dataURL, previewURL };
+            currentMedia = { type: type === 'img' ? 'image' : 'audio', data: base64Data, previewURL };
             updateActionIcon();
         }
 
@@ -703,7 +669,7 @@
                     const blob = new Blob(audioChunks, { type: 'audio/webm' });
                     const previewURL = URL.createObjectURL(blob);
                     const reader = new FileReader();
-                    reader.onload = () => addPreview('audio', previewURL, reader.result);
+                    reader.onload = () => addPreview('audio', previewURL, reader.result.split(',')[1]);
                     reader.readAsDataURL(blob);
                     stream.getTracks().forEach(track => track.stop());
                 };
@@ -729,26 +695,21 @@
             const isImage = file.type.startsWith('image/');
             const isVideo = file.type.startsWith('video/');
             const isAudio = file.type.startsWith('audio/');
-            if (!isImage && !isVideo && !isAudio) {
-                alert('Fichye sa pa sipòte');
-                return;
-            }
+            if (!isImage && !isVideo && !isAudio) return alert('Fichye sa pa sipòte');
+
             const previewURL = URL.createObjectURL(file);
             const reader = new FileReader();
             reader.onload = () => {
-                const mtype = isImage ? 'image' : (isVideo ? 'video' : 'audio');
-                const sendType = isImage ? 'image' : 'audio';
-                addPreview(mtype, previewURL, reader.result);
+                const type = isImage ? 'img' : isVideo ? 'video' : 'audio';
+                addPreview(type, previewURL, reader.result.split(',')[1]);
             };
             reader.readAsDataURL(file);
         };
 
         actionBtn.onclick = () => {
-            const hasText = userInput.value.trim().length > 0;
-            const hasMedia = currentMedia !== null;
             if (recording) {
                 stopRecording();
-            } else if (!hasText && !hasMedia) {
+            } else if (userInput.value.trim() === '' && currentMedia === null) {
                 startRecording();
             } else {
                 sendMessage();
@@ -757,8 +718,8 @@
 
         async function sendMessage() {
             if (isWaiting) return;
-            const text = userInput.value.trim();
 
+            const text = userInput.value.trim();
             const charCount = text.replace(/\s/g, '').length;
             if (text && charCount > 2000) {
                 showError(translations[currentLanguage].exceed_msg);
@@ -768,11 +729,9 @@
             isWaiting = true;
             actionBtn.disabled = true;
 
-            if (text) {
-                renderMessage({who: 'user', text});
-            }
+            if (text) renderMessage({who: 'user', text});
             if (currentMedia) {
-                renderMessage({who: 'user', mediaType: currentMedia.type === 'audio' && currentMedia.previewURL.includes('video') ? 'video' : currentMedia.type, mediaSrc: currentMedia.previewURL});
+                renderMessage({who: 'user', mediaType: currentMedia.type === 'image' ? 'img' : 'video', mediaSrc: currentMedia.previewURL});
             }
 
             userInput.value = '';
@@ -795,23 +754,7 @@
                 });
 
                 hideTyping();
-
-                if (res.headers.get('Content-Type')?.includes('text/plain')) {
-                    const botMsg = renderMessage({who: 'bot', text: ''});
-                    const bubble = botMsg.querySelector('.bubble');
-                    const reader = res.body.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-                    while (true) {
-                        const {done, value} = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, {stream: true});
-                        bubble.textContent = buffer;
-                        chatBox.scrollTop = chatBox.scrollHeight;
-                    }
-                } else {
-                    await loadOrUpdateSession();
-                }
+                await loadOrUpdateSession();
             } catch (e) {
                 hideTyping();
                 showError('Erreur envoi');
@@ -828,11 +771,8 @@
             if (text) {
                 const bubble = document.createElement('div');
                 bubble.className = `bubble ${who}`;
-                if (who === 'bot') {
-                    bubble.appendChild(formatToFragment(text));
-                } else {
-                    bubble.textContent = text;
-                }
+                if (who === 'bot') bubble.appendChild(formatToFragment(text));
+                else bubble.textContent = text;
                 msg.appendChild(bubble);
             }
 
@@ -847,10 +787,10 @@
                     if (who === 'bot') audio.autoplay = true;
                     mediaDiv.appendChild(audio);
                 } else if (mediaType) {
-                    const el = document.createElement(mediaType === 'image' ? 'img' : mediaType === 'video' ? 'video' : 'audio');
+                    const el = document.createElement(mediaType === 'img' ? 'img' : 'video');
                     el.src = mediaSrc;
-                    if (mediaType !== 'image') el.controls = true;
-                    el.onclick = () => openModal(mediaSrc, mediaType);
+                    el.controls = mediaType !== 'img';
+                    el.onclick = () => openModal(mediaSrc, mediaType === 'img' ? 'image' : 'video');
                     mediaDiv.appendChild(el);
                 } else if (images) {
                     images.forEach(src => {
@@ -870,30 +810,101 @@
 
             chatBox.appendChild(msg);
             chatBox.scrollTop = chatBox.scrollHeight;
-            return msg;
         }
 
-        function openModal(src, type) {
-            modalContent.innerHTML = '';
-            const el = document.createElement(type === 'image' ? 'img' : type === 'video' ? 'video' : 'audio');
-            el.src = src;
-            if (type !== 'image') {
-                el.controls = true;
-                el.autoplay = true;
+        function formatToFragment(raw) {
+            if (!raw) return document.createDocumentFragment();
+            let s = String(raw).replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+            const codeBlocks = [];
+            s = s.replace(/```([\s\S]*?)```/g, (m, inner) => { codeBlocks.push(inner); return `@@CODEBLOCK_${codeBlocks.length-1}@@`; });
+            const frag = document.createDocumentFragment();
+            const paragraphs = s.split(/\n{2,}/g);
+            paragraphs.forEach(par => {
+                if (/^@@CODEBLOCK_\d+@@$/.test(par)) {
+                    const idx = parseInt(par.match(/\d+/)[0]);
+                    const pre = document.createElement('pre');
+                    pre.className = 'wa-code-block copied-flash';
+                    pre.textContent = codeBlocks[idx] || '';
+                    pre.setAttribute('data-plain', codeBlocks[idx] || '');
+                    frag.appendChild(pre);
+                    return;
+                }
+                const container = document.createDocumentFragment();
+                let cursor = 0;
+                const tokenRe = /(@@CODEBLOCK_(\d+)@@)/g;
+                let m;
+                while ((m = tokenRe.exec(par)) !== null) {
+                    if (m.index > cursor) container.appendChild(buildParagraphs(par.slice(cursor, m.index)));
+                    const pre = document.createElement('pre');
+                    pre.className = 'wa-code-block copied-flash';
+                    const idx = parseInt(m[2]);
+                    pre.textContent = codeBlocks[idx] || '';
+                    pre.setAttribute('data-plain', codeBlocks[idx] || '');
+                    container.appendChild(pre);
+                    cursor = tokenRe.lastIndex;
+                }
+                if (cursor < par.length) container.appendChild(buildParagraphs(par.slice(cursor)));
+                frag.appendChild(container);
+            });
+            return frag;
+        }
+
+        function buildParagraphs(text) {
+            const frag = document.createDocumentFragment();
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                const div = document.createElement('div');
+                div.className = 'wa-paragraph';
+                const bullet = line.match(/^(\s*)[-*•]\s+(.*)/);
+                if (bullet) {
+                    const b = document.createElement('span');
+                    b.className = 'wa-bullet';
+                    b.textContent = '•';
+                    div.appendChild(b);
+                    line = bullet[2];
+                }
+                const temp = document.createElement('div');
+                temp.innerHTML = line
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="wa-strong">$1</strong>')
+                    .replace(/__(.*?)__/g, '<strong class="wa-strong">$1</strong>')
+                    .replace(/~~(.*?)~~/g, '<del>$1</del>')
+                    .replace(/~(.*?)~/g, '<span class="wa-underline">$1</span>')
+                    .replace(/`(.*?)`/g, '<span class="wa-inline copied-flash" data-plain="$1">$1</span>');
+                while (temp.firstChild) div.appendChild(temp.firstChild);
+                frag.appendChild(div);
+            });
+            return frag;
+        }
+
+        function showTyping() {
+            if (currentTypingEl) currentTypingEl.remove();
+            const msg = document.createElement('div');
+            msg.className = 'message bot';
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble bot';
+            const dots = document.createElement('span');
+            dots.textContent = '•••';
+            dots.style.animation = 'dots 1.4s infinite';
+            bubble.appendChild(dots);
+            msg.appendChild(bubble);
+            chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            currentTypingEl = msg;
+        }
+
+        function hideTyping() {
+            if (currentTypingEl) {
+                currentTypingEl.remove();
+                currentTypingEl = null;
             }
-            modalContent.appendChild(el);
-            downloadBtn.style.display = type === 'image' ? 'block' : 'none';
-            downloadBtn.onclick = () => {
-                const a = document.createElement('a');
-                a.href = src;
-                a.download = type === 'image' ? 'image.png' : 'media';
-                a.click();
-            };
-            modal.classList.add('active');
         }
 
-        closeModalBtn.onclick = () => modal.classList.remove('active');
-        modal.onclick = (e) => e.target === modal && modal.classList.remove('active');
+        function showError(msg) {
+            const el = document.getElementById('errorMsg');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
 
         async function fetchSession() {
             if (!currentTfid) return null;
@@ -917,33 +928,37 @@
 
             newMsgs.forEach(m => {
                 const who = m.from === 'user' ? 'user' : 'bot';
-                const images = m.url ? (Array.isArray(m.url) ? m.url : [m.url]) : null;
                 renderMessage({
                     who,
-                    text: m.text,
-                    mediaType: m.type === 'image' ? 'image' : m.type === 'audio' ? 'audio' : null,
+                    text: m.text || null,
+                    mediaType: m.type === 'image' ? 'img' : null,
                     mediaSrc: m.type === 'image' ? m.url : null,
-                    audioBase64: m.audio,
-                    images,
-                    ts: m.ts
+                    audioBase64: m.audio || null,
+                    ts: m.ts || Date.now()
                 });
             });
 
             messageCount = messages.length;
         }
 
-        function showTyping() {
-            // simple dots if needed
+        function openModal(src, type) {
+            modalContent.innerHTML = '';
+            const el = document.createElement(type === 'image' ? 'img' : type === 'video' ? 'video' : 'audio');
+            el.src = src;
+            if (type !== 'image') el.controls = true;
+            modalContent.appendChild(el);
+            downloadBtn.style.display = type === 'image' ? 'block' : 'none';
+            downloadBtn.onclick = () => {
+                const a = document.createElement('a');
+                a.href = src;
+                a.download = type === 'image' ? 'image.png' : 'media';
+                a.click();
+            };
+            modal.classList.add('active');
         }
 
-        function hideTyping() {}
-
-        function showError(msg) {
-            const el = document.getElementById('errorMsg');
-            el.textContent = msg;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 4000);
-        }
+        closeModalBtn.onclick = () => modal.classList.remove('active');
+        modal.onclick = (e) => e.target === modal && modal.classList.remove('active');
 
         userInput.addEventListener('input', () => {
             userInput.style.height = 'auto';
@@ -955,6 +970,55 @@
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (userInput.value.trim() || currentMedia) sendMessage();
+            }
+        });
+
+        document.getElementById('menuBtn').addEventListener('click', toggleMenu);
+
+        function toggleMenu() {
+            document.getElementById('userMenu').classList.toggle('show');
+            document.getElementById('menuBackdrop').classList.toggle('show');
+        }
+
+        function closeMenu() {
+            document.getElementById('userMenu').classList.remove('show');
+            document.getElementById('menuBackdrop').classList.remove('show');
+        }
+
+        function showLang() {
+            document.getElementById('backdrop').classList.add('show');
+            document.getElementById('lang-sheet').classList.add('show');
+        }
+
+        function closeOverlays() {
+            document.getElementById('backdrop').classList.remove('show');
+            document.getElementById('lang-sheet').classList.remove('show');
+        }
+
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            const t = translations[lang];
+
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.dataset.key;
+                if (t[key]) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.placeholder = t[key];
+                    else el.innerText = t[key];
+                }
+            });
+
+            document.getElementById('userInput').placeholder = t.chat_placeholder;
+        }
+
+        document.addEventListener('click', e => {
+            const el = e.target.closest('[data-plain]');
+            if (el) {
+                const txt = el.getAttribute('data-plain') || el.textContent;
+                navigator.clipboard?.writeText(txt).then(() => {
+                    el.classList.add('copied');
+                    setTimeout(() => el.classList.remove('copied'), 1000);
+                });
             }
         });
 
