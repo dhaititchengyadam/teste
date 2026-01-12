@@ -107,19 +107,28 @@ export default {
         const langDetectionInput = {
           messages: [
             {
+              role: "system",
+              content: "You are a language detector. Output ONLY the 2-letter ISO code (e.g., en, fr, es). No explanation."
+            },
+            {
               role: "user",
-              content: `Analyze the following text and return ONLY the ISO 639-1 language code (examples: en, fr, es, zh, ja, ko). Return strictly just the 2 letters, nothing else. Text: "${text}"`
+              content: `Detect language: "${text.substring(0, 50)}"`
             }
           ]
         };
 
-        const langResponse = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", langDetectionInput);
-        
-        let detectedLang = langResponse.response ? langResponse.response.trim().toLowerCase().slice(0, 2) : "en";
-        
-        const supportedLangs = ["en", "fr", "es", "zh", "ja", "ko"];
-        if (!supportedLangs.includes(detectedLang)) {
-          detectedLang = "en";
+        let detectedLang = "en";
+        try {
+          const langResponse = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", langDetectionInput);
+          const rawLang = langResponse.response || "";
+          const match = rawLang.match(/\b(en|fr|es|zh|ja|ko)\b/i);
+          if (match) {
+            detectedLang = match[0].toLowerCase();
+          } else {
+            detectedLang = "fr"; 
+          }
+        } catch (err) {
+          detectedLang = "fr";
         }
 
         const input = { 
