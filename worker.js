@@ -108,7 +108,7 @@ export default {
           messages: [
             {
               role: "system",
-              content: "You are a language detection algorithm. You must output ONLY the 2-letter ISO code for the language of the user text (e.g., 'fr' for French, 'es' for Spanish, 'en' for English). Do not add any explanation, punctuation, or other words."
+              content: "You are a precise language detection algorithm. Detect the language of the provided text and output ONLY the lowercase 2-letter ISO code, nothing else, no explanation, no punctuation, no quotes. Supported codes: 'en' for English, 'es' for Spanish/Español, 'fr' for French/Français, 'ht' for Haitian Creole/Kreyòl Ayisyen. If mixed or unclear, choose the dominant language."
             },
             {
               role: "user",
@@ -123,26 +123,29 @@ export default {
           const langResponse = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", langDetectionInput);
           
           if (langResponse && langResponse.response) {
-            const cleanResponse = langResponse.response.trim().toLowerCase();
-            
-            if (cleanResponse.includes("fr") || cleanResponse.includes("french")) {
-              detectedLang = "fr";
-            } else if (cleanResponse.includes("es") || cleanResponse.includes("spanish")) {
-              detectedLang = "es";
-            } else if (cleanResponse.includes("en") || cleanResponse.includes("english")) {
-              detectedLang = "en";
-            } else {
-              const match = cleanResponse.match(/\b(fr|es|en|zh|ja|ko)\b/);
-              if (match) detectedLang = match[0];
+            const cleaned = langResponse.response.trim().toLowerCase();
+            if (['en', 'es', 'fr', 'ht'].includes(cleaned)) {
+              detectedLang = cleaned;
             }
+            // Si pas dans la liste, reste sur "en" (fallback)
           }
         } catch (err) {
+          // En cas d'erreur de détection, fallback anglais
           detectedLang = "en";
         }
 
+        const langMap = {
+          en: "EN-US",
+          es: "ES",
+          fr: "FR",
+          ht: "FR"
+        };
+
+        const ttsLang = langMap[detectedLang] || "EN-US";
+
         const input = { 
           prompt: text,
-          language: detectedLang
+          lang: ttsLang
         };
 
         const response = await env.AI.run("@cf/myshell-ai/melotts", input);
