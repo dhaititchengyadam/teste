@@ -1,4 +1,4 @@
-exportexportexportexport default {
+export default {
   async fetch(request, env) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "https://ai.adamdh7.org",
