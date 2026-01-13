@@ -1,7 +1,7 @@
 export default {
   async fetch(request, env) {
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "https://ai.adamdh7.org",
+      "Access-Control-Allow-Origin": "https://fondend.pages.dev",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
