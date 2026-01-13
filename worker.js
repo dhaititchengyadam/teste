@@ -1,4 +1,4 @@
-export default {
+exportexport default {
   async fetch(request, env) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "https://ai.adamdh7.org",
@@ -127,25 +127,23 @@ export default {
             if (['en', 'es', 'fr', 'ht'].includes(cleaned)) {
               detectedLang = cleaned;
             }
-            // Si pas dans la liste, reste sur "en" (fallback)
           }
         } catch (err) {
-          // En cas d'erreur de détection, fallback anglais
           detectedLang = "en";
         }
 
         const langMap = {
-          en: "EN-US",
+          en: "EN",
           es: "ES",
           fr: "FR",
           ht: "FR"
         };
 
-        const ttsLang = langMap[detectedLang] || "EN-US";
+        const ttsLanguage = langMap[detectedLang] || "EN";
 
         const input = { 
           prompt: text,
-          lang: ttsLang
+          language: ttsLanguage
         };
 
         const response = await env.AI.run("@cf/myshell-ai/melotts", input);
