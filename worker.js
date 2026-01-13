@@ -105,11 +105,10 @@ export default {
         }
 
         const input = { 
-          text: text,
-          voice: "onyx"
+          prompt: text
         };
 
-        const response = await env.AI.run("@cf/openai/tts-1", input);
+        const response = await env.AI.run("@cf/myshell-ai/melotts", input);
 
         const audioBase64 = response.audio;
 
