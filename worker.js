@@ -1,4 +1,4 @@
-exportexport default {
+exportexportexport default {
   async fetch(request, env) {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "https://ai.adamdh7.org",
@@ -133,17 +133,17 @@ exportexport default {
         }
 
         const langMap = {
-          en: "EN",
-          es: "ES",
-          fr: "FR",
-          ht: "FR"
+          en: "en",
+          es: "es",
+          fr: "fr",
+          ht: "fr"
         };
 
-        const ttsLanguage = langMap[detectedLang] || "EN";
+        const ttsLang = langMap[detectedLang] || "en";
 
         const input = { 
           prompt: text,
-          language: ttsLanguage
+          lang: ttsLang
         };
 
         const response = await env.AI.run("@cf/myshell-ai/melotts", input);
