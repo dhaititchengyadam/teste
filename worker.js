@@ -1,7 +1,7 @@
 export default {
   async fetch(request, env) {
     const corsHeaders = {
-      "Access-Control-Allow-Origin": "https://fondend.pages.dev",
+      "Access-Control-Allow-Origin": "https://ai.adamdh7.org",
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
     };
@@ -106,10 +106,10 @@ export default {
 
         const input = { 
           text: text,
-          voice: "aura-orion-en"
+          voice: "onyx"
         };
 
-        const response = await env.AI.run("@cf/deepgram/aura-2-en", input);
+        const response = await env.AI.run("@cf/openai/tts-1", input);
 
         const audioBase64 = response.audio;
 
