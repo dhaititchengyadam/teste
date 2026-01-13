@@ -108,27 +108,36 @@ export default {
           messages: [
             {
               role: "system",
-              content: "You are a language detector. Output ONLY the 2-letter ISO code (e.g., en, fr, es). No explanation."
+              content: "You are a language detection algorithm. You must output ONLY the 2-letter ISO code for the language of the user text (e.g., 'fr' for French, 'es' for Spanish, 'en' for English). Do not add any explanation, punctuation, or other words."
             },
             {
               role: "user",
-              content: `Detect language: "${text.substring(0, 50)}"`
+              content: text
             }
           ]
         };
 
         let detectedLang = "en";
+        
         try {
-          const langResponse = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", langDetectionInput);
-          const rawLang = langResponse.response || "";
-          const match = rawLang.match(/\b(en|fr|es|zh|ja|ko)\b/i);
-          if (match) {
-            detectedLang = match[0].toLowerCase();
-          } else {
-            detectedLang = "fr"; 
+          const langResponse = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", langDetectionInput);
+          
+          if (langResponse && langResponse.response) {
+            const cleanResponse = langResponse.response.trim().toLowerCase();
+            
+            if (cleanResponse.includes("fr") || cleanResponse.includes("french")) {
+              detectedLang = "fr";
+            } else if (cleanResponse.includes("es") || cleanResponse.includes("spanish")) {
+              detectedLang = "es";
+            } else if (cleanResponse.includes("en") || cleanResponse.includes("english")) {
+              detectedLang = "en";
+            } else {
+              const match = cleanResponse.match(/\b(fr|es|en|zh|ja|ko)\b/);
+              if (match) detectedLang = match[0];
+            }
           }
         } catch (err) {
-          detectedLang = "fr";
+          detectedLang = "en";
         }
 
         const input = { 
