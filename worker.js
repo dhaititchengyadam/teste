@@ -47,7 +47,7 @@ export default {
             {
               role: "user",
               content: [
-                { type: "text", text: "Analyze this image in extreme detail in English." },
+                { type: "text", text: "Analyze this image in detail." },
                 { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } }
               ]
             }
@@ -64,7 +64,7 @@ export default {
         }
 
         const response = await env.AI.run(MODELS.WHISPER, {
-          audio: [...new Uint8Array(buffer)]
+          audio: new Uint8Array(buffer)
         });
 
         return Response.json(response, { headers: corsHeaders });
