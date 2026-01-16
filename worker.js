@@ -26,56 +26,90 @@ export default {
       "Vary": "Origin",
     };
 
-    if (request.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
+    }
 
     const url = new URL(request.url);
 
     try {
       if (url.pathname === "/agree-llama") {
         await env.AI.run(MODELS.VISION, { prompt: "agree" });
-        return new Response("OK", { headers: corsHeaders });
+        return new Response("✅ License accepted", {
+          headers: { ...corsHeaders, "Content-Type": "text/plain" },
+        });
       }
 
       if (url.pathname === "/analize-imaj" && request.method === "POST") {
         const contentType = request.headers.get("Content-Type") || "image/png";
         const buffer = await request.arrayBuffer();
+
+        if (buffer.byteLength === 0 || buffer.byteLength > 10 * 1024 * 1024) {
+          return Response.json({ error: "Image invalid or >10MB" }, { status: 400, headers: corsHeaders });
+        }
+
         const base64 = toBase64(buffer);
+        const dataUrl = `data:${contentType};base64,${base64}`;
+
         const response = await env.AI.run(MODELS.VISION, {
           messages: [
-            { role: "user", content: [
-              { type: "text", text: "Analyze image." },
-              { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } }
-            ]}
-          ]
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Analyze this image in extreme detail. If there are people or faces, describe them thoroughly: physical appearance, apparent age, gender, facial expression, emotions, clothing, pose, and if they resemble any known celebrity or person (give name if confident). Also describe the background, dominant colors, lighting, composition, photographic style, overall atmosphere, objects present, and any text. Provide a rich, professional-level visual description in English only."
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: dataUrl }
+                }
+              ]
+            }
+          ],
+          max_tokens: 1024
         });
+
         return Response.json({ response: response.response }, { headers: corsHeaders });
       }
 
-      // --- SECTION VOICE TO TEXT CORRIGÉE ---
       if (url.pathname === "/audio-to-text" && request.method === "POST") {
         const buffer = await request.arrayBuffer();
-        
-        if (buffer.byteLength === 0) return Response.json({ error: "Empty" }, { status: 400, headers: corsHeaders });
 
-        // On envoie le buffer brut (Uint8Array) directement comme valeur du champ audio.
-        // Cloudflare l'interprète alors comme l'objet binaire requis.
+        if (buffer.byteLength === 0 || buffer.byteLength > 30 * 1024 * 1024) {
+          return Response.json({ error: "Audio invalid or >30MB" }, { status: 400, headers: corsHeaders });
+        }
+
         const response = await env.AI.run(MODELS.WHISPER, {
-          audio: [...new Uint8Array(buffer)] 
+          audio: new Uint8Array(buffer)
         });
 
-        // Si l'erreur persiste, la documentation la plus récente suggère de passer 
-        // directement le buffer sans le destructurer : audio: new Uint8Array(buffer)
         return Response.json(response, { headers: corsHeaders });
       }
 
       if (url.pathname === "/text-to-speech" && request.method === "POST") {
         const { text } = await request.json();
-        const audioStream = await env.AI.run(MODELS.TTS, { text, speaker: "orion" });
-        return new Response(audioStream, { headers: { ...corsHeaders, "Content-Type": "audio/mpeg" } });
+
+        if (!text?.trim()) {
+          return Response.json({ error: "Valid text required" }, { status: 400, headers: corsHeaders });
+        }
+
+        const audioStream = await env.AI.run(MODELS.TTS, { 
+          text: text,
+          speaker: "orion"
+        });
+
+        return new Response(audioStream, {
+          headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
+        });
       }
 
     } catch (e) {
-      return Response.json({ error: e.message }, { status: 500, headers: corsHeaders });
+      const msg = e.message || "";
+      return Response.json(
+        { error: msg },
+        { status: msg.includes("5016") ? 403 : 500, headers: corsHeaders }
+      );
     }
 
     return new Response("Not Found", { status: 404, headers: corsHeaders });
