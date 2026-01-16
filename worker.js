@@ -16,7 +16,7 @@ function toBase64(buffer) {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
-    const allowedOrigins = ["https://ai.adamdh7.org", "https://fondend.pages.dev"];
+    const allowedOrigins = ["https://ai.adamdh7.org", "https://teste777.pages.dev"];
     const isAllowed = allowedOrigins.includes(origin);
 
     const corsHeaders = {
