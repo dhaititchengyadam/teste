@@ -4,7 +4,7 @@ const MODELS = {
   TTS: "@cf/deepgram/aura-2-en"
 };
 
-function toBase64(buffer) {
+function imageToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i += 8192) {
@@ -40,50 +40,38 @@ export default {
     try {
       if (url.pathname === "/agree-llama") {
         await env.AI.run(MODELS.VISION, { prompt: "agree" });
-        return new Response("License accepted.", {
-          headers: { ...corsHeaders, "Content-Type": "text/plain" },
-        });
+        return new Response("Ready", { headers: { ...corsHeaders, "Content-Type": "text/plain" } });
       }
 
       if (url.pathname === "/analize-imaj" && request.method === "POST") {
         const contentType = request.headers.get("Content-Type") || "image/png";
         const buffer = await request.arrayBuffer();
-
-        if (buffer.byteLength === 0 || buffer.byteLength > 10 * 1024 * 1024) {
-          return Response.json({ error: "Image too large" }, { status: 400, headers: corsHeaders });
-        }
-
-        const base64 = toBase64(buffer);
+        const base64 = imageToBase64(buffer);
         const response = await env.AI.run(MODELS.VISION, {
           messages: [
             {
               role: "user",
               content: [
-                {
-                  type: "text",
-                  text: "Analyze this image in extreme detail. Describe people, appearance, emotions, clothing, background, colors, and atmosphere. Provide a professional description in English."
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${contentType};base64,${base64}` }
-                }
+                { type: "text", text: "Analyze image in detail." },
+                { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } }
               ]
             }
           ]
         });
-
         return Response.json({ response: response.response }, { headers: corsHeaders });
       }
 
       if (url.pathname === "/audio-to-text" && request.method === "POST") {
         const buffer = await request.arrayBuffer();
-
-        if (buffer.byteLength === 0 || buffer.byteLength > 25 * 1024 * 1024) {
-          return Response.json({ error: "Audio too large" }, { status: 400, headers: corsHeaders });
+        
+        if (buffer.byteLength === 0) {
+          return Response.json({ error: "Empty audio" }, { status: 400, headers: corsHeaders });
         }
 
+        const audioData = Array.from(new Uint8Array(buffer));
+        
         const response = await env.AI.run(MODELS.WHISPER, {
-          audio: [...new Uint8Array(buffer)]
+          audio: audioData
         });
 
         return Response.json(response, { headers: corsHeaders });
@@ -91,28 +79,12 @@ export default {
 
       if (url.pathname === "/text-to-speech" && request.method === "POST") {
         const { text } = await request.json();
-
-        if (!text?.trim()) {
-          return Response.json({ error: "Text required" }, { status: 400, headers: corsHeaders });
-        }
-
-        const audioStream = await env.AI.run(MODELS.TTS, { 
-          text: text,
-          speaker: "orion"
-        });
-
-        return new Response(audioStream, {
-          headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
-        });
+        const audioStream = await env.AI.run(MODELS.TTS, { text, speaker: "orion" });
+        return new Response(audioStream, { headers: { ...corsHeaders, "Content-Type": "audio/mpeg" } });
       }
 
     } catch (e) {
-      const msg = e.message || "Unknown error";
-      const status = msg.includes("5016") ? 403 : 500;
-      return Response.json(
-        { error: msg },
-        { status: status, headers: corsHeaders }
-      );
+      return Response.json({ error: e.message }, { status: 500, headers: corsHeaders });
     }
 
     return new Response("Not Found", { status: 404, headers: corsHeaders });
