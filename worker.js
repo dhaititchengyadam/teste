@@ -4,7 +4,7 @@ const MODELS = {
   TTS: "@cf/deepgram/aura-2-en"
 };
 
-function imageToBase64(buffer) {
+function toBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
   for (let i = 0; i < bytes.byteLength; i += 8192) {
@@ -16,13 +16,8 @@ function imageToBase64(buffer) {
 export default {
   async fetch(request, env) {
     const origin = request.headers.get("Origin");
-    const allowedOrigins = [
-      "https://ai.adamdh7.org",
-      "https://fondend.pages.dev",
-      "http://127.0.0.1:5500"
-    ];
-    
-    const isAllowed = allowedOrigins.includes(origin) || !origin;
+    const allowedOrigins = ["https://ai.adamdh7.org", "https://fondend.pages.dev"];
+    const isAllowed = allowedOrigins.includes(origin);
 
     const corsHeaders = {
       "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -40,19 +35,19 @@ export default {
     try {
       if (url.pathname === "/agree-llama") {
         await env.AI.run(MODELS.VISION, { prompt: "agree" });
-        return new Response("Ready", { headers: { ...corsHeaders, "Content-Type": "text/plain" } });
+        return new Response("OK", { headers: corsHeaders });
       }
 
       if (url.pathname === "/analize-imaj" && request.method === "POST") {
         const contentType = request.headers.get("Content-Type") || "image/png";
         const buffer = await request.arrayBuffer();
-        const base64 = imageToBase64(buffer);
+        const base64 = toBase64(buffer);
         const response = await env.AI.run(MODELS.VISION, {
           messages: [
             {
               role: "user",
               content: [
-                { type: "text", text: "Analyze image in detail." },
+                { type: "text", text: "Analyze this image in extreme detail in English." },
                 { type: "image_url", image_url: { url: `data:${contentType};base64,${base64}` } }
               ]
             }
@@ -68,10 +63,8 @@ export default {
           return Response.json({ error: "Empty audio" }, { status: 400, headers: corsHeaders });
         }
 
-        const audioData = Array.from(new Uint8Array(buffer));
-        
         const response = await env.AI.run(MODELS.WHISPER, {
-          audio: audioData
+          audio: [...new Uint8Array(buffer)]
         });
 
         return Response.json(response, { headers: corsHeaders });
@@ -80,11 +73,16 @@ export default {
       if (url.pathname === "/text-to-speech" && request.method === "POST") {
         const { text } = await request.json();
         const audioStream = await env.AI.run(MODELS.TTS, { text, speaker: "orion" });
-        return new Response(audioStream, { headers: { ...corsHeaders, "Content-Type": "audio/mpeg" } });
+        return new Response(audioStream, {
+          headers: { ...corsHeaders, "Content-Type": "audio/mpeg" },
+        });
       }
 
     } catch (e) {
-      return Response.json({ error: e.message }, { status: 500, headers: corsHeaders });
+      return Response.json({ error: e.message }, { 
+        status: e.message.includes("5016") ? 403 : 500, 
+        headers: corsHeaders 
+      });
     }
 
     return new Response("Not Found", { status: 404, headers: corsHeaders });
