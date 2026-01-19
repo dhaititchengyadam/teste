@@ -15,3 +15,9 @@ crons = ["*/7 * * * *"]
 routes = [
   "teste.adamdh7.org/*"
 ]
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = false
