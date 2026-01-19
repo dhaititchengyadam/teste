@@ -3,14 +3,15 @@ main = "worker.js"
 compatibility_date = "2026-01-09"
 
 [[r2_buckets]]
-binding = "R2_TESTE"
+binding = "teste"
 bucket_name = "teste"
 
 [ai]
 binding = "AI"
 
 [triggers]
-crons = ["*/1 * * * *"]
+crons = ["*/7 * * * *"]
 
-[[routes]]
-pattern = "teste.adamdh7.org/*"
+routes = [
+  "teste.adamdh7.org/*"
+]
